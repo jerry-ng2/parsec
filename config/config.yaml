@@ -134,9 +134,9 @@ learnings:
   # Set to true in config.local.yaml to allow anonymous (no OAuth) admin access
   # NEVER set this in production
   allow_anonymous_admin: false
-  # Analysis backend: "claude" (default, uses main Claude backend via api/vertex/bedrock)
-  # or "local" (OpenAI-compatible local LLM server like Ollama/vLLM)
-  backend: "claude"
+  # Set to "local" to use a local LLM (Ollama/vLLM) for learning analysis.
+  # When empty (default), uses the main anthropic.backend (api/vertex/bedrock).
+  # backend: "local"
   # Local LLM settings (only used when backend: "local")
   local:
     base_url: "http://localhost:11434/v1"  # Ollama default

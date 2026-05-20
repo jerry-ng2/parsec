@@ -236,11 +236,12 @@ Respond with ONLY a JSON array of strings, each being one learning. Example:
 If no useful learnings, respond with: []"""
 
     try:
-        learnings_backend = cfg.get("learnings", {}).get("backend", "claude")
-        logger.info("Learnings analysis backend: %s", learnings_backend)
+        learnings_backend = cfg.get("learnings", {}).get("backend", "")
         if learnings_backend == "local":
+            logger.info("Learnings analysis backend: local")
             return await _analyze_local(cfg, analysis_prompt)
 
+        logger.info("Learnings analysis backend: %s", backend)
         if backend == "bedrock":
             return await _analyze_bedrock(cfg, model, analysis_prompt)
         elif backend == "vertex":
