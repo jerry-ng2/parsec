@@ -232,6 +232,11 @@ Respond with ONLY a JSON array of strings, each being one learning. Example:
 If no useful learnings, respond with: []"""
 
     try:
+        learnings_backend = cfg.get("learnings", {}).get("backend", "claude")
+        logger.info("Learnings analysis backend: %s", learnings_backend)
+        if learnings_backend == "local":
+            return await _analyze_local(cfg, analysis_prompt)
+
         if backend == "bedrock":
             return await _analyze_bedrock(cfg, model, analysis_prompt)
         elif backend == "vertex":
@@ -313,6 +318,88 @@ async def _analyze_bedrock(cfg: dict, model: str, prompt: str) -> list[dict]:
     if not isinstance(block, TextBlock):
         return []
     return _parse_analysis_response(block.text)
+
+
+async def _analyze_local(cfg: object, prompt: str) -> list[dict]:
+    """Analyze using a local OpenAI-compatible LLM server (Ollama, vLLM, etc.)."""
+    import httpx
+
+    local_cfg = cfg.get("learnings", {}).get("local", {})  # type: ignore[attr-defined]
+    base_url = local_cfg.get("base_url", "http://localhost:11434/v1")
+    model = local_cfg.get("model", "llama3.2")
+    api_key = local_cfg.get("api_key", "")
+    timeout = local_cfg.get("timeout", 60)
+    temperature = local_cfg.get("temperature", None)
+    max_tokens = local_cfg.get("max_tokens", 1024)
+
+    logger.info(
+        "Local LLM analysis: model=%s, url=%s, prompt=%d chars",
+        model,
+        base_url,
+        len(prompt),
+    )
+    logger.debug("Local LLM prompt:\n%s", prompt)
+
+    url = f"{base_url.rstrip('/')}/chat/completions"
+    payload: dict = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    if temperature is not None:
+        payload["temperature"] = temperature
+
+    headers: dict[str, str] = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        resp = await client.post(url, json=payload, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
+
+    choices = data.get("choices", [])
+    if not choices:
+        logger.warning("Local LLM returned no choices")
+        return []
+    text = choices[0].get("message", {}).get("content", "")
+    if not text:
+        logger.warning("Local LLM returned empty content")
+        return []
+
+    logger.info("Local LLM response (%d chars): %s", len(text), text[:200])
+    entries = _parse_analysis_response(text)
+    logger.info("Local LLM extracted %d learnings", len(entries))
+
+    dump_prompts = cfg.get("debug", {}).get("dump_prompts", False)  # type: ignore[attr-defined]
+    if dump_prompts:
+        _dump_local_llm_debug(prompt, text, model, entries)
+
+    return entries
+
+
+def _dump_local_llm_debug(
+    prompt: str, response: str, model: str, entries: list[dict]
+) -> None:
+    """Write the local LLM request/response to data/debug/ for inspection."""
+    debug_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "debug")
+    os.makedirs(debug_dir, exist_ok=True)
+
+    ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S_%f")
+    filepath = os.path.join(debug_dir, f"local_llm_learnings_{ts}.json")
+
+    try:
+        payload = {
+            "model": model,
+            "prompt": prompt,
+            "response": response,
+            "parsed_learnings": [e["text"] for e in entries],
+        }
+        with open(filepath, "w") as f:
+            json.dump(payload, f, indent=2)
+        logger.info("Local LLM debug dump: %s", filepath)
+    except Exception:
+        logger.warning("Failed to write local LLM debug dump")
 
 
 def _parse_analysis_response(text: str) -> list[dict]:

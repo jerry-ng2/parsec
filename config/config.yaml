@@ -134,6 +134,17 @@ learnings:
   # Set to true in config.local.yaml to allow anonymous (no OAuth) admin access
   # NEVER set this in production
   allow_anonymous_admin: false
+  # Analysis backend: "claude" (default, uses main Claude backend via api/vertex/bedrock)
+  # or "local" (OpenAI-compatible local LLM server like Ollama/vLLM)
+  backend: "claude"
+  # Local LLM settings (only used when backend: "local")
+  local:
+    base_url: "http://localhost:11434/v1"  # Ollama default
+    model: "llama3.2"
+    api_key: ""        # Some servers require a dummy key
+    timeout: 60        # Seconds — local inference can be slow
+    # temperature: 0.3
+    # max_tokens: 1024
 
 debug:
   # Write the full LLM request payload (system prompt, messages, tools) to
