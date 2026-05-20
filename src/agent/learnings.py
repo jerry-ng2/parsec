@@ -115,6 +115,7 @@ async def analyze_and_learn(messages: list) -> None:
         # Skip very short conversations (< 2 user messages)
         user_msgs = [m for m in messages if isinstance(m, dict) and m.get("role") == "user"]
         if len(user_msgs) < 2:
+            logger.info("Learnings skipped: only %d user messages (need 2+)", len(user_msgs))
             return
 
         # Count tool calls
@@ -135,7 +136,10 @@ async def analyze_and_learn(messages: list) -> None:
 
         # Skip conversations with very few tool calls (nothing to learn)
         if len(tool_calls) < 3:
+            logger.info("Learnings skipped: only %d tool calls (need 3+)", len(tool_calls))
             return
+
+        logger.info("Learnings analysis starting: %d user msgs, %d tool calls", len(user_msgs), len(tool_calls))
 
         new_entries = await _ai_analyze(messages, tool_calls)
         if not new_entries:
