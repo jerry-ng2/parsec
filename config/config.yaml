@@ -138,13 +138,13 @@ learnings:
   # When empty (default), uses the main anthropic.backend (api/vertex/bedrock).
   # backend: "local"
   # Local LLM settings (only used when backend: "local")
+  backend: "local"
+
   local:
-    base_url: "http://localhost:11434/v1"  # Ollama default
-    model: "llama3.2"
-    api_key: "" 
-    timeout: 60        # Seconds — local inference can be slow
-    # temperature: 0.3
-    # max_tokens: 1024
+    base_url: ""
+    model: "qwen3-14b"
+    api_key: ""
+    timeout: 300
 
 debug:
   # Write the full LLM request payload (system prompt, messages, tools) to
