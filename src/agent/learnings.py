@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from anthropic.types import TextBlock
 
 from src.config import get_config
+from src.connections.mlflow_tracking import get_experiment_name, get_mlflow_client
 
 logger = logging.getLogger(__name__)
 
@@ -379,35 +380,50 @@ async def _analyze_local(cfg: object, prompt: str) -> list[dict]:
     entries = _parse_analysis_response(text)
     logger.info("Local LLM extracted %d learnings", len(entries))
 
-    dump_prompts = cfg.get("debug", {}).get("dump_prompts", False)  # type: ignore[attr-defined]
-    if dump_prompts:
-        _dump_local_llm_debug(prompt, text, model, entries)
+    _log_to_mlflow(prompt, text, model, "local", entries)
 
     return entries
 
 
-def _dump_local_llm_debug(
-    prompt: str, response: str, model: str, entries: list[dict]
+def _log_to_mlflow(
+    prompt: str, response: str, model: str, backend: str, entries: list[dict]
 ) -> None:
-    """Write the local LLM request/response to data/debug/ for inspection."""
-    debug_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "debug")
-    os.makedirs(debug_dir, exist_ok=True)
+    """Log learnings analysis as an MLflow trace. No-op if MLflow is disabled."""
+    import mlflow
+    from mlflow.entities import SpanType
 
-    ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S_%f")
-    filepath = os.path.join(debug_dir, f"local_llm_learnings_{ts}.json")
+    if get_mlflow_client() is None:
+        return
 
     try:
-        payload = {
-            "model": model,
-            "prompt": prompt,
-            "response": response,
-            "parsed_learnings": [e["text"] for e in entries],
-        }
-        with open(filepath, "w") as f:
-            json.dump(payload, f, indent=2)
-        logger.info("Local LLM debug dump: %s", filepath)
+        with mlflow.start_span(
+            name="parsec:learnings_analysis", span_type=SpanType.CHAIN
+        ) as root_span:
+            root_span.set_inputs({"prompt": prompt[:2000]})
+
+            with mlflow.start_span(
+                name=f"llm:{model}", span_type=SpanType.LLM
+            ) as llm_span:
+                llm_span.set_inputs({"model": model, "backend": backend})
+                llm_span.set_outputs({"response": response})
+
+            root_span.set_attributes(
+                {
+                    "model": model,
+                    "backend": backend,
+                    "num_learnings": len(entries),
+                }
+            )
+            for i, entry in enumerate(entries, 1):
+                root_span.set_attribute(f"learning_{i}", entry["text"][:500])
+
+            root_span.set_outputs(
+                {"learnings": [e["text"] for e in entries]}
+            )
+
+        logger.info("Learnings analysis traced to MLflow")
     except Exception:
-        logger.warning("Failed to write local LLM debug dump")
+        logger.warning("MLflow learnings trace failed (non-fatal)", exc_info=True)
 
 
 def _parse_analysis_response(text: str) -> list[dict]:
