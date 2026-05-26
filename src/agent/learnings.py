@@ -326,12 +326,15 @@ async def _analyze_bedrock(cfg: dict, model: str, prompt: str) -> list[dict]:
 
 
 async def _analyze_local(cfg: object, prompt: str) -> list[dict]:
-    """Analyze using a local OpenAI-compatible LLM server (Ollama, vLLM, etc.)."""
+    """Analyze using an OpenAI-format LLM endpoint (e.g. LiteLLM proxy)."""
     import httpx
 
     local_cfg = cfg.get("learnings", {}).get("local", {})  # type: ignore[attr-defined]
-    base_url = local_cfg.get("base_url", "http://localhost:11434/v1")
-    model = local_cfg.get("model", "llama3.2")
+    base_url = local_cfg.get("base_url", "")
+    if not base_url:
+        logger.warning("learnings.local.base_url not configured")
+        return []
+    model = local_cfg.get("model", "")
     api_key = local_cfg.get("api_key", "")
     timeout = local_cfg.get("timeout", 60)
     temperature = local_cfg.get("temperature", None)
