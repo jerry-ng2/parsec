@@ -21,3 +21,6 @@ reporting_mcp_token: ""
 # GitHub PAT (repo scope, for rhpds private repos)
 # Used by the fetch_github_file tool (GitHub remote MCP server)
 github_token: "ghp_..."
+
+# LiteLLM API key for learnings analysis (set in common.yml: backend, base_url, model)
+learnings_litellm_api_key: ""

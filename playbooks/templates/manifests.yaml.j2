@@ -31,6 +31,11 @@ data:
     alert_api_key: ""
     learnings:
       admin_users: "{{ learnings_admin_users | default('') }}"
+      backend: "{{ learnings_backend | default('') }}"
+      local:
+        base_url: "{{ learnings_litellm_base_url | default('') }}"
+        model: "{{ learnings_litellm_model | default('qwen3-14b') }}"
+        timeout: {{ learnings_litellm_timeout | default(300) }}
     github:
       mcp_url: "https://api.githubcopilot.com/mcp/"
     mlflow:
@@ -218,6 +223,12 @@ spec:
                 secretKeyRef:
                   name: parsec-secrets
                   key: reporting-mcp-token
+                  optional: true
+            - name: PARSEC_LEARNINGS__LOCAL__API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: parsec-secrets
+                  key: litellm-api-key
                   optional: true
           envFrom:
             - secretRef:

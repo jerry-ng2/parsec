@@ -36,6 +36,12 @@ reporting_mcp_url: "http://reporting-mcp.demo-reporting.svc:8080/mcp/"
 # MLflow tracking (cross-namespace, mlflow namespace)
 mlflow_tracking_url: "http://mlflow-tracking.mlflow.svc:5000"
 
+# LiteLLM proxy for learnings analysis (local LLM backend)
+learnings_backend: "local"
+learnings_litellm_base_url: "https://litellm-prod.apps.maas.redhatworkshops.io/v1"
+learnings_litellm_model: "qwen3-14b"
+learnings_litellm_timeout: 300
+
 # OCPV clusters (labagator-reader SA kubeconfigs)
 ocpv_kubeconfigs:
   ocpv05: "{{ lookup('env', 'HOME') }}/secrets/ocpv-readonly/ocpv05.kubeconfig"
